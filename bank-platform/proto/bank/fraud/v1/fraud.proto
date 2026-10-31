@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package bank.fraud.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/fraud/v1;fraudv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// FraudService screens every money movement against configurable rules.
+service FraudService {
+  // Internal only: synchronous pre-check called before any posting.
+  rpc Score(ScoreRequest) returns (ScoreResponse);
+
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse) {
+    option (google.api.http) = {get: "/v1/staff/fraud/alerts"};
+  }
+  rpc DecideAlert(DecideAlertRequest) returns (Alert) {
+    option (google.api.http) = {
+      post: "/v1/staff/fraud/alerts/{alert_id}/decide"
+      body: "*"
+    };
+  }
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse) {
+    option (google.api.http) = {get: "/v1/staff/fraud/rules"};
+  }
+  rpc UpdateRule(UpdateRuleRequest) returns (Rule) {
+    option (google.api.http) = {
+      patch: "/v1/staff/fraud/rules/{rule_id}"
+      body: "*"
+    };
+  }
+  rpc GetStats(GetStatsRequest) returns (FraudStats) {
+    option (google.api.http) = {get: "/v1/staff/fraud/stats"};
+  }
+}
+
+message ScoreRequest {
+  string user_id = 1;
+  string account_id = 2;
+  int64 amount = 3;
+  string channel = 4; // TRANSFER, PAYMENT, CARD, WITHDRAWAL, LOAN_REPAYMENT
+  string counterparty = 5;
+  string reference_type = 6;
+  string reference_id = 7;
+}
+
+message ScoreResponse {
+  string decision = 1; // ALLOW, REVIEW, BLOCK
+  int32 score = 2;
+  repeated string reasons = 3;
+  string alert_id = 4;
+}
+
+message Alert {
+  string id = 1;
+  string user_id = 2;
+  string account_id = 3;
+  int64 amount = 4;
+  string channel = 5;
+  string counterparty = 6;
+  string reference_type = 7;
+  string reference_id = 8;
+  string decision = 9;
+  int32 score = 10;
+  repeated string reasons = 11;
+  string status = 12; // OPEN, APPROVED, REJECTED, CLOSED
+  string analyst_id = 13;
+  string analyst_note = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp decided_at = 16;
+}
+
+message ListAlertsRequest {
+  string status = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListAlertsResponse {
+  repeated Alert alerts = 1;
+  string next_page_token = 2;
+}
+
+message DecideAlertRequest {
+  string alert_id = 1;
+  bool approve = 2;
+  string note = 3;
+}
+
+message Rule {
+  string id = 1;
+  string code = 2;
+  string description = 3;
+  string action = 4; // REVIEW, BLOCK
+  int64 threshold = 5;
+  int32 window_minutes = 6;
+  int32 weight = 7;
+  bool enabled = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListRulesRequest {}
+message ListRulesResponse {
+  repeated Rule rules = 1;
+}
+
+message UpdateRuleRequest {
+  string rule_id = 1;
+  int64 threshold = 2;
+  int32 window_minutes = 3;
+  string action = 4;
+  bool enabled = 5;
+}
+
+message GetStatsRequest {}
+message FraudStats {
+  int64 screened = 1;
+  int64 allowed = 2;
+  int64 reviewed = 3;
+  int64 blocked = 4;
+  int64 open_alerts = 5;
+}

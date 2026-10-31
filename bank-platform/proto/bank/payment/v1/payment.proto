@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package bank.payment.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/payment/v1;paymentv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// PaymentService pays billers through a (mocked) external payment gateway.
+service PaymentService {
+  rpc ListBillers(ListBillersRequest) returns (ListBillersResponse) {
+    option (google.api.http) = {get: "/v1/billers"};
+  }
+  rpc CreatePayment(CreatePaymentRequest) returns (Payment) {
+    option (google.api.http) = {
+      post: "/v1/payments"
+      body: "*"
+    };
+  }
+  rpc GetPayment(GetPaymentRequest) returns (Payment) {
+    option (google.api.http) = {get: "/v1/payments/{payment_id}"};
+  }
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse) {
+    option (google.api.http) = {get: "/v1/payments"};
+  }
+
+  // Internal only.
+  rpc ResolveReview(ResolveReviewRequest) returns (Payment);
+}
+
+message Biller {
+  string id = 1;
+  string name = 2;
+  string category = 3;
+  string reference_label = 4;
+  string reference_hint = 5;
+}
+
+message SagaStep {
+  string name = 1;
+  string status = 2;
+  string detail = 3;
+  google.protobuf.Timestamp at = 4;
+}
+
+message Payment {
+  string id = 1;
+  string user_id = 2;
+  string from_account_id = 3;
+  string from_account_number = 4;
+  string biller_id = 5;
+  string biller_name = 6;
+  string customer_reference = 7;
+  int64 amount = 8;
+  string status = 9; // PENDING, PENDING_REVIEW, SUCCESS, FAILED, REJECTED
+  string failure_reason = 10;
+  string gateway_reference = 11;
+  string fraud_decision = 12;
+  string ledger_entry_id = 13;
+  string idempotency_key = 14;
+  repeated SagaStep steps = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+message ListBillersRequest {}
+message ListBillersResponse {
+  repeated Biller billers = 1;
+}
+
+message CreatePaymentRequest {
+  string from_account_id = 1;
+  string biller_id = 2;
+  string customer_reference = 3;
+  int64 amount = 4;
+  string idempotency_key = 5;
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+message ListPaymentsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+  string next_page_token = 2;
+}
+
+message ResolveReviewRequest {
+  string payment_id = 1;
+  bool approve = 2;
+  string note = 3;
+}

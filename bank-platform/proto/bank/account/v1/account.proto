@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package bank.account.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/account/v1;accountv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// AccountService owns account lifecycle, status, limits and fund holds.
+service AccountService {
+  rpc OpenAccount(OpenAccountRequest) returns (Account) {
+    option (google.api.http) = {
+      post: "/v1/accounts"
+      body: "*"
+    };
+  }
+  rpc ListMyAccounts(ListMyAccountsRequest) returns (ListAccountsResponse) {
+    option (google.api.http) = {get: "/v1/accounts"};
+  }
+  rpc GetAccount(GetAccountRequest) returns (Account) {
+    option (google.api.http) = {get: "/v1/accounts/{account_id}"};
+  }
+  rpc LookupAccount(LookupAccountRequest) returns (AccountLookup) {
+    option (google.api.http) = {get: "/v1/accounts/lookup/{account_number}"};
+  }
+  rpc CloseAccount(CloseAccountRequest) returns (Account) {
+    option (google.api.http) = {
+      post: "/v1/accounts/{account_id}/close"
+      body: "*"
+    };
+  }
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse) {
+    option (google.api.http) = {get: "/v1/staff/accounts"};
+  }
+  rpc SetAccountStatus(SetAccountStatusRequest) returns (Account) {
+    option (google.api.http) = {
+      post: "/v1/staff/accounts/{account_id}/status"
+      body: "*"
+    };
+  }
+
+  // Internal only.
+  rpc ValidateAccount(ValidateAccountRequest) returns (Account);
+  rpc ResolveAccountNumber(ResolveAccountNumberRequest) returns (Account);
+  rpc PlaceHold(PlaceHoldRequest) returns (Hold);
+  rpc ReleaseHold(ReleaseHoldRequest) returns (Hold);
+  rpc ListAllAccountIds(ListAllAccountIdsRequest) returns (ListAllAccountIdsResponse);
+}
+
+message Account {
+  string id = 1;
+  string account_number = 2;
+  string user_id = 3;
+  string holder_name = 4;
+  string type = 5; // SAVINGS, CURRENT
+  string nickname = 6;
+  string status = 7; // ACTIVE, FROZEN, CLOSED
+  string currency = 8;
+  int64 balance = 9;
+  int64 available_balance = 10;
+  int64 held_amount = 11;
+  int64 daily_transfer_limit = 12;
+  string status_reason = 13;
+  google.protobuf.Timestamp created_at = 14;
+}
+
+message AccountLookup {
+  string account_id = 1;
+  string account_number = 2;
+  string holder_name = 3;
+  string type = 4;
+  string status = 5;
+}
+
+message Hold {
+  string id = 1;
+  string account_id = 2;
+  int64 amount = 3;
+  string reference = 4;
+  string status = 5; // ACTIVE, RELEASED
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message OpenAccountRequest {
+  string type = 1;
+  string nickname = 2;
+}
+
+message ListMyAccountsRequest {}
+
+message ListAccountsResponse {
+  repeated Account accounts = 1;
+  string next_page_token = 2;
+}
+
+message GetAccountRequest {
+  string account_id = 1;
+}
+
+message LookupAccountRequest {
+  string account_number = 1;
+}
+
+message CloseAccountRequest {
+  string account_id = 1;
+}
+
+message ListAccountsRequest {
+  string user_id = 1;
+  string query = 2;
+  string status = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message SetAccountStatusRequest {
+  string account_id = 1;
+  string status = 2;
+  string reason = 3;
+}
+
+message ValidateAccountRequest {
+  string account_id = 1;
+  // When set, the account must belong to this user.
+  string owner_user_id = 2;
+  // When true, the account must be allowed to send money (ACTIVE).
+  bool for_debit = 3;
+}
+
+message ResolveAccountNumberRequest {
+  string account_number = 1;
+}
+
+message PlaceHoldRequest {
+  string account_id = 1;
+  int64 amount = 2;
+  // Unique business reference; placing a hold twice with the same reference is a no-op.
+  string reference = 3;
+}
+
+message ReleaseHoldRequest {
+  string hold_id = 1;
+  string reference = 2;
+}
+
+message ListAllAccountIdsRequest {
+  string status = 1;
+}
+message ListAllAccountIdsResponse {
+  repeated string account_ids = 1;
+}

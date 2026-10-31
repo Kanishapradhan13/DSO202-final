@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package bank.ledger.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/ledger/v1;ledgerv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// LedgerService is the double-entry journal and the single source of truth for balances.
+// Balances are credits minus debits. Customer accounts may never go below zero;
+// system accounts (cash, loans, clearing) may.
+service LedgerService {
+  rpc CreateLedgerAccount(CreateLedgerAccountRequest) returns (LedgerAccount);
+  rpc PostEntries(PostEntriesRequest) returns (JournalEntry);
+  rpc ReverseEntry(ReverseEntryRequest) returns (JournalEntry);
+  rpc GetBalance(GetBalanceRequest) returns (Balance);
+  rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
+  rpc GetBalanceAt(GetBalanceAtRequest) returns (Balance);
+  rpc ListAccountPostings(ListAccountPostingsRequest) returns (ListAccountPostingsResponse);
+
+  rpc TrialBalance(TrialBalanceRequest) returns (TrialBalanceResponse) {
+    option (google.api.http) = {get: "/v1/staff/ledger/trial-balance"};
+  }
+  rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse) {
+    option (google.api.http) = {get: "/v1/staff/ledger/entries"};
+  }
+}
+
+message LedgerAccount {
+  string account_id = 1;
+  string kind = 2; // CUSTOMER, SYSTEM
+  string name = 3;
+  int64 balance = 4;
+}
+
+message Posting {
+  string account_id = 1;
+  string direction = 2; // DEBIT, CREDIT
+  int64 amount = 3; // always positive, minor units
+  int64 balance_after = 4;
+}
+
+message JournalEntry {
+  string id = 1;
+  string idempotency_key = 2;
+  string description = 3;
+  string reference_type = 4;
+  string reference_id = 5;
+  repeated Posting postings = 6;
+  string reverses_entry_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message Balance {
+  string account_id = 1;
+  int64 balance = 2;
+  google.protobuf.Timestamp as_of = 3;
+}
+
+message CreateLedgerAccountRequest {
+  string account_id = 1;
+  string kind = 2;
+  string name = 3;
+}
+
+message PostEntriesRequest {
+  string idempotency_key = 1;
+  string description = 2;
+  string reference_type = 3;
+  string reference_id = 4;
+  repeated Posting postings = 5;
+}
+
+message ReverseEntryRequest {
+  string entry_id = 1;
+  string idempotency_key = 2;
+  string reason = 3;
+}
+
+message GetBalanceRequest {
+  string account_id = 1;
+}
+
+message GetBalancesRequest {
+  repeated string account_ids = 1;
+}
+message GetBalancesResponse {
+  repeated Balance balances = 1;
+}
+
+message GetBalanceAtRequest {
+  string account_id = 1;
+  google.protobuf.Timestamp at = 2;
+}
+
+message AccountPosting {
+  string entry_id = 1;
+  string direction = 2;
+  int64 amount = 3;
+  int64 balance_after = 4;
+  string description = 5;
+  string reference_type = 6;
+  string reference_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListAccountPostingsRequest {
+  string account_id = 1;
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+}
+message ListAccountPostingsResponse {
+  repeated AccountPosting postings = 1;
+}
+
+message TrialBalanceRequest {}
+message TrialBalanceResponse {
+  int64 total_debits = 1;
+  int64 total_credits = 2;
+  bool balanced = 3;
+  int64 entry_count = 4;
+  int64 unbalanced_entries = 5;
+  int64 balance_mismatches = 6;
+  repeated LedgerAccount system_accounts = 7;
+  int64 customer_funds = 8;
+}
+
+message ListEntriesRequest {
+  string account_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListEntriesResponse {
+  repeated JournalEntry entries = 1;
+  string next_page_token = 2;
+}

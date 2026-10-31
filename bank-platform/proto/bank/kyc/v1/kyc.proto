@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package bank.kyc.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/kyc/v1;kycv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// KycService captures identity documents and tracks verification status.
+service KycService {
+  rpc SubmitKyc(SubmitKycRequest) returns (KycCase) {
+    option (google.api.http) = {
+      post: "/v1/kyc"
+      body: "*"
+    };
+  }
+  rpc GetMyKyc(GetMyKycRequest) returns (KycCase) {
+    option (google.api.http) = {get: "/v1/kyc/me"};
+  }
+  rpc ListKycCases(ListKycCasesRequest) returns (ListKycCasesResponse) {
+    option (google.api.http) = {get: "/v1/staff/kyc"};
+  }
+  rpc GetKycCase(GetKycCaseRequest) returns (KycCase) {
+    option (google.api.http) = {get: "/v1/staff/kyc/{case_id}"};
+  }
+  rpc ReviewKyc(ReviewKycRequest) returns (KycCase) {
+    option (google.api.http) = {
+      post: "/v1/staff/kyc/{case_id}/review"
+      body: "*"
+    };
+  }
+
+  // Internal only.
+  rpc GetKycStatus(GetKycStatusRequest) returns (KycCase);
+}
+
+message KycCase {
+  string id = 1;
+  string user_id = 2;
+  string customer_id = 3;
+  string full_name = 4;
+  string document_type = 5; // CID, PASSPORT, WORK_PERMIT
+  string document_number = 6;
+  string date_of_birth = 7;
+  string status = 8; // NOT_SUBMITTED, PENDING, APPROVED, REJECTED
+  string risk_tier = 9; // LOW, MEDIUM, HIGH
+  repeated string auto_checks = 10;
+  string reviewer_id = 11;
+  string review_note = 12;
+  bool has_document = 13;
+  bytes document_image = 14;
+  string document_mime = 15;
+  google.protobuf.Timestamp submitted_at = 16;
+  google.protobuf.Timestamp reviewed_at = 17;
+}
+
+message SubmitKycRequest {
+  string document_type = 1;
+  string document_number = 2;
+  string date_of_birth = 3;
+  bytes document_image = 4;
+  string document_mime = 5;
+}
+
+message GetMyKycRequest {}
+
+message ListKycCasesRequest {
+  string status = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListKycCasesResponse {
+  repeated KycCase cases = 1;
+  string next_page_token = 2;
+}
+
+message GetKycCaseRequest {
+  string case_id = 1;
+}
+
+message ReviewKycRequest {
+  string case_id = 1;
+  bool approve = 2;
+  string note = 3;
+  string risk_tier = 4;
+}
+
+message GetKycStatusRequest {
+  string user_id = 1;
+}

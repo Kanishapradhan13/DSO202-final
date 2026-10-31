@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package bank.audit.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/audit/v1;auditv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// AuditService is an append-only, hash-chained log of who did what and when.
+service AuditService {
+  // Internal only.
+  rpc Record(RecordRequest) returns (AuditEvent);
+
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
+    option (google.api.http) = {get: "/v1/staff/audit/events"};
+  }
+  rpc VerifyChain(VerifyChainRequest) returns (VerifyChainResponse) {
+    option (google.api.http) = {get: "/v1/staff/audit/verify"};
+  }
+}
+
+message AuditEvent {
+  string id = 1;
+  int64 sequence = 2;
+  string actor_id = 3;
+  string actor_roles = 4;
+  string service = 5;
+  string action = 6;
+  string resource_type = 7;
+  string resource_id = 8;
+  string outcome = 9; // SUCCESS, FAILURE
+  string before_json = 10;
+  string after_json = 11;
+  string request_id = 12;
+  string hash = 13;
+  string prev_hash = 14;
+  google.protobuf.Timestamp occurred_at = 15;
+}
+
+message RecordRequest {
+  string event_id = 1; // idempotency: recording the same event id twice is a no-op
+  string actor_id = 2;
+  string actor_roles = 3;
+  string service = 4;
+  string action = 5;
+  string resource_type = 6;
+  string resource_id = 7;
+  string outcome = 8;
+  string before_json = 9;
+  string after_json = 10;
+  string request_id = 11;
+  google.protobuf.Timestamp occurred_at = 12;
+}
+
+message ListEventsRequest {
+  string actor_id = 1;
+  string service = 2;
+  string action = 3;
+  string resource_type = 4;
+  string resource_id = 5;
+  string request_id = 6;
+  int32 page_size = 7;
+  string page_token = 8;
+}
+message ListEventsResponse {
+  repeated AuditEvent events = 1;
+  string next_page_token = 2;
+  int64 total = 3;
+}
+
+message VerifyChainRequest {}
+message VerifyChainResponse {
+  bool valid = 1;
+  int64 checked = 2;
+  int64 first_broken_sequence = 3;
+  string head_hash = 4;
+}

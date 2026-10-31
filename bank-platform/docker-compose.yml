@@ -1,0 +1,269 @@
+# CBMP Bank: full stack on one machine.
+#   docker compose up -d --build
+# Portal http://localhost:3000 · API http://localhost:8080 · Mail http://localhost:8025 · Jaeger http://localhost:16686
+#
+# DOCKERFILE=deploy/docker/Dockerfile.prebuilt uses host-built binaries (make build-linux) for faster rebuilds.
+
+x-go-service: &go-service
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    etcd:
+      condition: service_started
+  networks: [bank]
+  deploy:
+    resources:
+      limits:
+        memory: 128M
+
+x-env: &env
+  APP_ENV: dev
+  LOG_LEVEL: info
+  ETCD_ENDPOINTS: etcd:2379
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/docker/postgres-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [bank]
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.21
+    restart: unless-stopped
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+    volumes: [etcddata:/etcd-data]
+    networks: [bank]
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports: ["8025:8025"]
+    networks: [bank]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.65.0
+    profiles: [observability]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["16686:16686"]
+    networks: [bank]
+
+  auth-service:
+    <<: *go-service
+    image: cbmp/auth-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: auth-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://auth_svc:auth_dev_pw@postgres:5432/auth_db?sslmode=disable
+      DEV_EXPOSE_OTP: "true"
+      SEED_DEMO_USERS: "true"
+
+  customer-service:
+    <<: *go-service
+    image: cbmp/customer-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: customer-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://customer_svc:customer_dev_pw@postgres:5432/customer_db?sslmode=disable
+
+  kyc-service:
+    <<: *go-service
+    image: cbmp/kyc-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: kyc-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://kyc_svc:kyc_dev_pw@postgres:5432/kyc_db?sslmode=disable
+
+  account-service:
+    <<: *go-service
+    image: cbmp/account-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: account-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://account_svc:account_dev_pw@postgres:5432/account_db?sslmode=disable
+
+  ledger-service:
+    <<: *go-service
+    image: cbmp/ledger-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: ledger-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://ledger_svc:ledger_dev_pw@postgres:5432/ledger_db?sslmode=disable
+
+  transaction-service:
+    <<: *go-service
+    image: cbmp/transaction-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: transaction-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://transaction_svc:transaction_dev_pw@postgres:5432/transaction_db?sslmode=disable
+
+  transfer-service:
+    <<: *go-service
+    image: cbmp/transfer-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: transfer-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://transfer_svc:transfer_dev_pw@postgres:5432/transfer_db?sslmode=disable
+
+  payment-service:
+    <<: *go-service
+    image: cbmp/payment-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: payment-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://payment_svc:payment_dev_pw@postgres:5432/payment_db?sslmode=disable
+
+  card-service:
+    <<: *go-service
+    image: cbmp/card-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: card-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://card_svc:card_dev_pw@postgres:5432/card_db?sslmode=disable
+
+  loan-service:
+    <<: *go-service
+    image: cbmp/loan-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: loan-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://loan_svc:loan_dev_pw@postgres:5432/loan_db?sslmode=disable
+
+  fraud-service:
+    <<: *go-service
+    image: cbmp/fraud-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: fraud-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://fraud_svc:fraud_dev_pw@postgres:5432/fraud_db?sslmode=disable
+
+  audit-service:
+    <<: *go-service
+    image: cbmp/audit-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: audit-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://audit_svc:audit_dev_pw@postgres:5432/audit_db?sslmode=disable
+
+  notification-service:
+    <<: *go-service
+    image: cbmp/notification-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: notification-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://notification_svc:notification_dev_pw@postgres:5432/notification_db?sslmode=disable
+      SMTP_ADDR: mailpit:1025
+
+  statement-service:
+    <<: *go-service
+    image: cbmp/statement-service:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: statement-service }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://statement_svc:statement_dev_pw@postgres:5432/statement_db?sslmode=disable
+
+  api-gateway:
+    restart: unless-stopped
+    image: cbmp/api-gateway:dev
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-deploy/docker/Dockerfile}
+      args: { SERVICE: api-gateway }
+    environment:
+      <<: *env
+      HTTP_PORT: "8080"
+      CORS_ORIGINS: http://localhost:3000
+      RATE_LIMIT_RPS: "30"
+      AUTH_RATE_PER_MIN: "60"
+    ports: ["8080:8080"]
+    depends_on: [auth-service]
+    networks: [bank]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  web-portal:
+    restart: unless-stopped
+    image: cbmp/web-portal:dev
+    build:
+      context: ./web
+    environment:
+      GATEWAY_URL: http://api-gateway:8080
+      MAILPIT_URL: http://localhost:8025
+      COOKIE_SECURE: "false"
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on: [api-gateway]
+    networks: [bank]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  bank: {}
+
+volumes:
+  pgdata: {}
+  etcddata: {}

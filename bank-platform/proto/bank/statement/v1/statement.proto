@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package bank.statement.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/statement/v1;statementv1";
+
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+import "google/protobuf/timestamp.proto";
+
+// StatementService builds PDF/CSV statements from ledger postings.
+service StatementService {
+  rpc GenerateStatement(GenerateStatementRequest) returns (Statement) {
+    option (google.api.http) = {
+      post: "/v1/accounts/{account_id}/statements"
+      body: "*"
+    };
+  }
+  rpc ListStatements(ListStatementsRequest) returns (ListStatementsResponse) {
+    option (google.api.http) = {get: "/v1/accounts/{account_id}/statements"};
+  }
+  rpc DownloadStatement(DownloadStatementRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/v1/statements/{statement_id}/download"};
+  }
+  rpc RunMonthly(RunMonthlyRequest) returns (RunMonthlyResponse) {
+    option (google.api.http) = {
+      post: "/v1/staff/statements/run-monthly"
+      body: "*"
+    };
+  }
+}
+
+message Statement {
+  string id = 1;
+  string account_id = 2;
+  string account_number = 3;
+  string user_id = 4;
+  string holder_name = 5;
+  string period_from = 6;
+  string period_to = 7;
+  int64 opening_balance = 8;
+  int64 closing_balance = 9;
+  int64 total_credits = 10;
+  int64 total_debits = 11;
+  int32 entry_count = 12;
+  bool reconciled = 13;
+  string kind = 14; // ON_DEMAND, MONTHLY
+  google.protobuf.Timestamp created_at = 15;
+}
+
+message GenerateStatementRequest {
+  string account_id = 1;
+  string from = 2; // YYYY-MM-DD
+  string to = 3;
+}
+
+message ListStatementsRequest {
+  string account_id = 1;
+}
+message ListStatementsResponse {
+  repeated Statement statements = 1;
+}
+
+message DownloadStatementRequest {
+  string statement_id = 1;
+  string format = 2; // pdf, csv
+}
+
+message RunMonthlyRequest {
+  int32 year = 1;
+  int32 month = 2;
+}
+message RunMonthlyResponse {
+  int32 generated = 1;
+  int32 skipped = 2;
+  int32 failed = 3;
+}

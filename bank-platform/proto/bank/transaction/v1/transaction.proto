@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package bank.transaction.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/transaction/v1;transactionv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// TransactionService handles teller deposits and withdrawals and keeps the
+// transaction-history read model across every money movement.
+service TransactionService {
+  rpc Deposit(CashRequest) returns (Transaction) {
+    option (google.api.http) = {
+      post: "/v1/staff/transactions/deposit"
+      body: "*"
+    };
+  }
+  rpc Withdraw(CashRequest) returns (Transaction) {
+    option (google.api.http) = {
+      post: "/v1/staff/transactions/withdraw"
+      body: "*"
+    };
+  }
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse) {
+    option (google.api.http) = {get: "/v1/accounts/{account_id}/transactions"};
+  }
+  rpc ListMyTransactions(ListMyTransactionsRequest) returns (ListTransactionsResponse) {
+    option (google.api.http) = {get: "/v1/transactions"};
+  }
+  rpc SearchTransactions(SearchTransactionsRequest) returns (ListTransactionsResponse) {
+    option (google.api.http) = {get: "/v1/staff/transactions"};
+  }
+
+  // Internal only.
+  rpc RecordTransaction(RecordTransactionRequest) returns (Transaction);
+}
+
+message Transaction {
+  string id = 1;
+  string account_id = 2;
+  string account_number = 3;
+  string user_id = 4;
+  string type = 5; // DEPOSIT, WITHDRAWAL, TRANSFER_IN, TRANSFER_OUT, PAYMENT, CARD_PURCHASE, LOAN_DISBURSEMENT, LOAN_REPAYMENT, REVERSAL
+  string direction = 6; // DEBIT, CREDIT
+  int64 amount = 7;
+  int64 balance_after = 8;
+  string counterparty = 9;
+  string description = 10;
+  string reference_type = 11;
+  string reference_id = 12;
+  string ledger_entry_id = 13;
+  string status = 14;
+  google.protobuf.Timestamp created_at = 15;
+}
+
+message CashRequest {
+  string account_id = 1;
+  string account_number = 2;
+  int64 amount = 3;
+  string description = 4;
+}
+
+message ListTransactionsRequest {
+  string account_id = 1;
+  string type = 2;
+  string direction = 3;
+  string from = 4; // YYYY-MM-DD
+  string to = 5;
+  int64 min_amount = 6;
+  int64 max_amount = 7;
+  string query = 8;
+  int32 page_size = 9;
+  string page_token = 10;
+}
+
+message ListMyTransactionsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string type = 3;
+}
+
+message SearchTransactionsRequest {
+  string user_id = 1;
+  string account_number = 2;
+  string type = 3;
+  int64 min_amount = 4;
+  int32 page_size = 5;
+  string page_token = 6;
+}
+
+message ListTransactionsResponse {
+  repeated Transaction transactions = 1;
+  string next_page_token = 2;
+}
+
+message RecordTransactionRequest {
+  string account_id = 1;
+  string account_number = 2;
+  string user_id = 3;
+  string type = 4;
+  string direction = 5;
+  int64 amount = 6;
+  int64 balance_after = 7;
+  string counterparty = 8;
+  string description = 9;
+  string reference_type = 10;
+  string reference_id = 11;
+  string ledger_entry_id = 12;
+  google.protobuf.Timestamp occurred_at = 13;
+}

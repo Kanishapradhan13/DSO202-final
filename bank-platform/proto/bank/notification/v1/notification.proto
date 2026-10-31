@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package bank.notification.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/notification/v1;notificationv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// NotificationService delivers email, SMS (simulated) and in-app messages.
+service NotificationService {
+  // Internal only.
+  rpc Send(SendRequest) returns (SendResponse);
+
+  rpc ListMyNotifications(ListMyNotificationsRequest) returns (ListMyNotificationsResponse) {
+    option (google.api.http) = {get: "/v1/notifications"};
+  }
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/{notification_id}/read"
+      body: "*"
+    };
+  }
+}
+
+message Notification {
+  string id = 1;
+  string user_id = 2;
+  string template = 3;
+  string title = 4;
+  string body = 5;
+  string channel = 6;
+  bool read = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message SendRequest {
+  string event_id = 1;
+  string user_id = 2;
+  string email = 3;
+  string template = 4;
+  map<string, string> data = 5;
+  repeated string channels = 6; // EMAIL, SMS, IN_APP; empty means template defaults
+}
+message SendResponse {
+  repeated string delivered = 1;
+}
+
+message ListMyNotificationsRequest {
+  bool unread_only = 1;
+  int32 page_size = 2;
+}
+message ListMyNotificationsResponse {
+  repeated Notification notifications = 1;
+  int64 unread_count = 2;
+}
+
+message MarkReadRequest {
+  string notification_id = 1; // "all" marks every notification as read
+}
+message MarkReadResponse {
+  int64 updated = 1;
+}

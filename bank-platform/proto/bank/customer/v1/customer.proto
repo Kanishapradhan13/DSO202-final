@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package bank.customer.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/customer/v1;customerv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// CustomerService owns the customer profile and CIF number.
+service CustomerService {
+  rpc CreateProfile(CreateProfileRequest) returns (Customer) {
+    option (google.api.http) = {
+      post: "/v1/customers/me"
+      body: "*"
+    };
+  }
+  rpc GetMyProfile(GetMyProfileRequest) returns (Customer) {
+    option (google.api.http) = {get: "/v1/customers/me"};
+  }
+  rpc UpdateMyProfile(UpdateMyProfileRequest) returns (Customer) {
+    option (google.api.http) = {
+      patch: "/v1/customers/me"
+      body: "*"
+    };
+  }
+  rpc SearchCustomers(SearchCustomersRequest) returns (SearchCustomersResponse) {
+    option (google.api.http) = {get: "/v1/staff/customers"};
+  }
+  rpc GetCustomer(GetCustomerRequest) returns (Customer) {
+    option (google.api.http) = {get: "/v1/staff/customers/{customer_id}"};
+  }
+
+  // Internal only.
+  rpc GetCustomerByUser(GetCustomerByUserRequest) returns (Customer);
+}
+
+message Customer {
+  string id = 1;
+  string user_id = 2;
+  string cif = 3;
+  string full_name = 4;
+  string email = 5;
+  string phone = 6;
+  string date_of_birth = 7; // YYYY-MM-DD
+  string address = 8;
+  string city = 9;
+  string occupation = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateProfileRequest {
+  string full_name = 1;
+  string phone = 2;
+  string date_of_birth = 3;
+  string address = 4;
+  string city = 5;
+  string occupation = 6;
+}
+
+message GetMyProfileRequest {}
+
+message UpdateMyProfileRequest {
+  string phone = 1;
+  string address = 2;
+  string city = 3;
+  string occupation = 4;
+}
+
+message SearchCustomersRequest {
+  string query = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message SearchCustomersResponse {
+  repeated Customer customers = 1;
+  string next_page_token = 2;
+}
+
+message GetCustomerRequest {
+  string customer_id = 1;
+}
+
+message GetCustomerByUserRequest {
+  string user_id = 1;
+}

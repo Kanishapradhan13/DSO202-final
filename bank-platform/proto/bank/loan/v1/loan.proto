@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package bank.loan.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/loan/v1;loanv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// LoanService handles fixed-rate, fixed-term loans with equal monthly instalments (EMI).
+service LoanService {
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {get: "/v1/loans/products"};
+  }
+  rpc QuoteLoan(QuoteLoanRequest) returns (LoanQuote) {
+    option (google.api.http) = {get: "/v1/loans/quote"};
+  }
+  rpc ApplyLoan(ApplyLoanRequest) returns (Loan) {
+    option (google.api.http) = {
+      post: "/v1/loans"
+      body: "*"
+    };
+  }
+  rpc ListMyLoans(ListMyLoansRequest) returns (ListLoansResponse) {
+    option (google.api.http) = {get: "/v1/loans"};
+  }
+  rpc GetLoan(GetLoanRequest) returns (Loan) {
+    option (google.api.http) = {get: "/v1/loans/{loan_id}"};
+  }
+  rpc RepayLoan(RepayLoanRequest) returns (Loan) {
+    option (google.api.http) = {
+      post: "/v1/loans/{loan_id}/repay"
+      body: "*"
+    };
+  }
+  rpc ListApplications(ListApplicationsRequest) returns (ListLoansResponse) {
+    option (google.api.http) = {get: "/v1/staff/loans"};
+  }
+  rpc ReviewLoan(ReviewLoanRequest) returns (Loan) {
+    option (google.api.http) = {
+      post: "/v1/staff/loans/{loan_id}/review"
+      body: "*"
+    };
+  }
+}
+
+message LoanProduct {
+  string id = 1;
+  string name = 2;
+  int32 annual_rate_bps = 3; // 1200 = 12.00%
+  int64 min_amount = 4;
+  int64 max_amount = 5;
+  int32 min_term_months = 6;
+  int32 max_term_months = 7;
+  string description = 8;
+}
+
+message Instalment {
+  int32 number = 1;
+  string due_date = 2;
+  int64 principal = 3;
+  int64 interest = 4;
+  int64 amount = 5;
+  int64 balance_after = 6;
+  string status = 7; // DUE, PAID
+  google.protobuf.Timestamp paid_at = 8;
+}
+
+message Loan {
+  string id = 1;
+  string user_id = 2;
+  string applicant_name = 3;
+  string product_id = 4;
+  string product_name = 5;
+  int64 principal = 6;
+  int32 annual_rate_bps = 7;
+  int32 term_months = 8;
+  int64 emi = 9;
+  int64 total_interest = 10;
+  string status = 11; // APPLIED, REJECTED, ACTIVE, CLOSED
+  string disbursement_account_id = 12;
+  string disbursement_account_number = 13;
+  string purpose = 14;
+  int64 outstanding_principal = 15;
+  int32 paid_instalments = 16;
+  string next_due_date = 17;
+  int64 next_due_amount = 18;
+  string reviewer_note = 19;
+  string ledger_entry_id = 20;
+  repeated Instalment schedule = 21;
+  google.protobuf.Timestamp created_at = 22;
+  google.protobuf.Timestamp disbursed_at = 23;
+  int64 monthly_income = 24;
+}
+
+message ListProductsRequest {}
+message ListProductsResponse {
+  repeated LoanProduct products = 1;
+}
+
+message QuoteLoanRequest {
+  string product_id = 1;
+  int64 amount = 2;
+  int32 term_months = 3;
+}
+message LoanQuote {
+  int64 emi = 1;
+  int64 total_interest = 2;
+  int64 total_payable = 3;
+  int32 annual_rate_bps = 4;
+  repeated Instalment schedule = 5;
+}
+
+message ApplyLoanRequest {
+  string product_id = 1;
+  int64 amount = 2;
+  int32 term_months = 3;
+  string disbursement_account_id = 4;
+  string purpose = 5;
+  int64 monthly_income = 6;
+}
+
+message ListMyLoansRequest {}
+
+message ListLoansResponse {
+  repeated Loan loans = 1;
+  string next_page_token = 2;
+}
+
+message GetLoanRequest {
+  string loan_id = 1;
+}
+
+message RepayLoanRequest {
+  string loan_id = 1;
+  string from_account_id = 2;
+  string idempotency_key = 3;
+}
+
+message ListApplicationsRequest {
+  string status = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ReviewLoanRequest {
+  string loan_id = 1;
+  bool approve = 2;
+  string note = 3;
+}

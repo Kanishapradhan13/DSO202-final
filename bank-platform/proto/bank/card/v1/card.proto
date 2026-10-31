@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package bank.card.v1;
+
+option go_package = "github.com/dso202/bank-platform/gen/go/bank/card/v1;cardv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// CardService issues debit cards and authorises (simulated) card purchases.
+service CardService {
+  rpc IssueCard(IssueCardRequest) returns (Card) {
+    option (google.api.http) = {
+      post: "/v1/cards"
+      body: "*"
+    };
+  }
+  rpc ListMyCards(ListMyCardsRequest) returns (ListCardsResponse) {
+    option (google.api.http) = {get: "/v1/cards"};
+  }
+  rpc GetCard(GetCardRequest) returns (Card) {
+    option (google.api.http) = {get: "/v1/cards/{card_id}"};
+  }
+  rpc ActivateCard(ActivateCardRequest) returns (Card) {
+    option (google.api.http) = {
+      post: "/v1/cards/{card_id}/activate"
+      body: "*"
+    };
+  }
+  rpc BlockCard(BlockCardRequest) returns (Card) {
+    option (google.api.http) = {
+      post: "/v1/cards/{card_id}/block"
+      body: "*"
+    };
+  }
+  rpc UnblockCard(UnblockCardRequest) returns (Card) {
+    option (google.api.http) = {
+      post: "/v1/cards/{card_id}/unblock"
+      body: "*"
+    };
+  }
+  rpc SetLimits(SetLimitsRequest) returns (Card) {
+    option (google.api.http) = {
+      post: "/v1/cards/{card_id}/limits"
+      body: "*"
+    };
+  }
+  rpc Authorize(AuthorizeRequest) returns (Authorization) {
+    option (google.api.http) = {
+      post: "/v1/cards/{card_id}/simulate-purchase"
+      body: "*"
+    };
+  }
+  rpc ListAuthorizations(ListAuthorizationsRequest) returns (ListAuthorizationsResponse) {
+    option (google.api.http) = {get: "/v1/cards/{card_id}/authorizations"};
+  }
+  rpc ListCards(ListCardsRequest) returns (ListCardsResponse) {
+    option (google.api.http) = {get: "/v1/staff/cards"};
+  }
+}
+
+message Card {
+  string id = 1;
+  string user_id = 2;
+  string account_id = 3;
+  string account_number = 4;
+  string masked_pan = 5;
+  string last4 = 6;
+  int32 expiry_month = 7;
+  int32 expiry_year = 8;
+  string cardholder_name = 9;
+  string status = 10; // INACTIVE, ACTIVE, BLOCKED, LOST
+  string block_reason = 11;
+  int64 daily_limit = 12;
+  int64 per_transaction_limit = 13;
+  bool online_enabled = 14;
+  int64 spent_today = 15;
+  string network = 16;
+  google.protobuf.Timestamp created_at = 17;
+}
+
+message Authorization {
+  string id = 1;
+  string card_id = 2;
+  string merchant = 3;
+  int64 amount = 4;
+  string channel = 5; // POS, ONLINE
+  string status = 6; // APPROVED, DECLINED
+  string decline_reason = 7;
+  string ledger_entry_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message IssueCardRequest {
+  string account_id = 1;
+}
+
+message ListMyCardsRequest {}
+
+message ListCardsRequest {
+  string user_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListCardsResponse {
+  repeated Card cards = 1;
+  string next_page_token = 2;
+}
+
+message GetCardRequest {
+  string card_id = 1;
+}
+
+message ActivateCardRequest {
+  string card_id = 1;
+  string pin = 2;
+}
+
+message BlockCardRequest {
+  string card_id = 1;
+  string reason = 2; // TEMPORARY, LOST, STOLEN
+}
+
+message UnblockCardRequest {
+  string card_id = 1;
+}
+
+message SetLimitsRequest {
+  string card_id = 1;
+  int64 daily_limit = 2;
+  int64 per_transaction_limit = 3;
+  bool online_enabled = 4;
+}
+
+message AuthorizeRequest {
+  string card_id = 1;
+  string merchant = 2;
+  int64 amount = 3;
+  string channel = 4;
+  string pin = 5;
+  string idempotency_key = 6;
+}
+
+message ListAuthorizationsRequest {
+  string card_id = 1;
+}
+message ListAuthorizationsResponse {
+  repeated Authorization authorizations = 1;
+}
